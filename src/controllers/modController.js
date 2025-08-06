@@ -1,58 +1,70 @@
+const fs = require('fs');
+const path = require('path');
 const Mod = require('../models/Mod');
 const License = require('../models/License');
 
+// Multer setup
+const multer = require('multer');
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+exports.upload = multer({ storage });
+
+exports.create = async (req, res) => {
+  // Admin middleware ile korunacak
+  const { name, description, version, isPublic, allowedUsers } = req.body;
+  if (!req.file) return res.status(400).json({ msg: 'Dosya gerekli' });
+
+  try {
+    const downloadUrl = `/uploads/${req.file.filename}`;
+    const mod = new Mod({ name, description, version, downloadUrl, isPublic, allowedUsers });
+    await mod.save();
+    res.status(201).json(mod);
+  } catch (e) {
+    console.error(e); res.status(500).send('Sunucu hatası');
+  }
+};
+
 exports.list = async (req, res) => {
   try {
-    const mods = await Mod.find();
-    res.json(mods);
-  } catch (err) {
-    res.status(500).send('Server error');
+    const all = await Mod.find();
+    // public veya kullanıcıya atanmış olanları filtrele
+    const visible = all.filter(m =>
+      m.isPublic || m.allowedUsers.includes(req.user.id)
+    );
+    res.json(visible);
+  } catch (e) {
+    console.error(e); res.status(500).send('Sunucu hatası');
   }
 };
 
 exports.get = async (req, res) => {
   try {
-    const mod = await Mod.findById(req.params.id);
-    if (!mod) return res.status(404).json({ msg: 'Mod not found' });
-    res.json(mod);
-  } catch (err) {
-    res.status(500).send('Server error');
-  }
-};
-
-exports.create = async (req, res) => {
-  // TODO: admin-only, validation
-  try {
-    const mod = new Mod(req.body);
-    await mod.save();
-    res.status(201).json(mod);
-  } catch (err) {
-    res.status(500).send('Server error');
-  }
-};
-
-exports.update = async (req, res) => {
-  // TODO: admin-only
-  try {
-    let mod = await Mod.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!mod) return res.status(404).json({ msg: 'Mod not found' });
-    res.json(mod);
-  } catch (err) {
-    res.status(500).send('Server error');
-  }
-};
-
-exports.remove = async (req, res) => {
-  // TODO: admin-only
-  try {
-    await Mod.findByIdAndDelete(req.params.id);
-    res.json({ msg: 'Mod removed' });
-  } catch (err) {
-    res.status(500).send('Server error');
+    const m = await Mod.findById(req.params.id);
+    if (!m) return res.status(404).json({ msg: 'Mod bulunamadı' });
+    if (!m.isPublic && !m.allowedUsers.includes(req.user.id)) {
+      return res.status(403).json({ msg: 'İzin yok' });
+    }
+    res.json(m);
+  } catch (e) {
+    console.error(e); res.status(500).send('Sunucu hatası');
   }
 };
 
 exports.download = async (req, res) => {
-  // TODO: validate license, then stream encrypted file
-  res.status(501).json({ msg: 'Not implemented' });
+  try {
+    const m = await Mod.findById(req.params.id);
+    if (!m) return res.status(404).json({ msg: 'Mod bulunamadı' });
+    if (!m.isPublic && !m.allowedUsers.includes(req.user.id)) {
+      return res.status(403).json({ msg: 'İzin yok' });
+    }
+    const filePath = path.join(__dirname, '../', m.downloadUrl);
+    // İleride hash eklenebilir
+    res.download(filePath);
+  } catch (e) {
+    console.error(e); res.status(500).send('Sunucu hatası');
+  }
 };
+
+// Admin için güncelle ve silme metotlarını da ekleyebilirsiniz
