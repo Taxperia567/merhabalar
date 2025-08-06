@@ -1,7 +1,6 @@
 {
   "name": "ets2-mod-launcher-api",
-  "version": "0.1.0",
-  "description": "Backend API for ETS2 Mod Launcher",
+  "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -13,7 +12,8 @@
     "express": "^4.18.2",
     "express-validator": "^6.14.3",
     "jsonwebtoken": "^9.0.0",
-    "mongoose": "^7.2.2"
+    "mongoose": "^7.2.2",
+    "multer": "^1.4.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
