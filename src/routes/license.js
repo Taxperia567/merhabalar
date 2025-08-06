@@ -1,9 +1,8 @@
-const express = require('express');
+const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { activate, status } = require('../controllers/licenseController');
-const router = express.Router();
+const ctl = require('../controllers/licenseController');
 
-router.post('/activate', auth, activate);
-router.get('/status', auth, status);
+router.post('/activate', auth, ctl.activate);
+router.get('/status', auth, ctl.status);
 
 module.exports = router;
